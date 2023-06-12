@@ -182,20 +182,20 @@ if __name__ == "__main__":
 
     #histogram of spike diffs
     num_bins = 20
-
+    '''
     plt.figure()
     plt.subplot(231)
     plt.hist(spike_diffs['time'], num_bins, density = True)
     plt.xlabel('Interburst interval (s)')
-    plt.ylabel('Fraction of spikes')
+    plt.ylabel('Probability of observation')
 
     print(spike_diffs['time'])
     print(1/spike_diffs['time'])
 
     plt.subplot(232)
     plt.hist(1/spike_diffs['time'], num_bins, density = True)
-    plt.xlabel('Spike frequency (1/s)')
-    plt.ylabel('Fraction of spikes')
+    plt.xlabel('Burst frequency (1/s)')
+    plt.ylabel('Probability of observation')
 
 
     plt.subplot(233)
@@ -220,20 +220,22 @@ if __name__ == "__main__":
     plt.xlabel('f (1/s)')
     plt.ylabel('$P(spike frequency) < f$')
 
-
+    '''
     ###
     #scipy stats version?
     IBI_hist = np.histogram(spike_diffs['time'], bins = num_bins)
+    (IBI_data, IBI_bins) = IBI_hist
     hist_dist = stats.rv_histogram(IBI_hist, density = False)
     X = np.linspace(0, max(spike_diffs['time']), 100)
     
     plt.figure()
     plt.hist(spike_diffs['time'], num_bins, density = True)
+    plt.plot(hist_dist)
     plt.plot(X, hist_dist.pdf(X), label= 'PDF')
     plt.plot(X, hist_dist.cdf(X), label= 'CDF')
     
     plt.xlabel('Interburst interval (s)')
-    plt.ylabel('Fraction of spikes')
+    plt.ylabel('Probability of observation')
 
     plt.show()
     # X,t = load_from_file(filename, 0, 0, 1, 20, 800)
