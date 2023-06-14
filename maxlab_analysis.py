@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+#import tables
 import h5py
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
     # However, if the block size is too large, handling of the data in Python gets too slow.
 
     with h5py.File(filename, "r") as h5_file:
+        print(h5_file)
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
 
         # Load settings from file
@@ -47,7 +49,6 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
         # Load raw data from file
         groups = h5_object['groups']
         group0 = groups[next(iter(groups))] #there always only seems to be one group within this calle "routed" - can we replace this code to be more specific?
-
         return group0['raw'][:,start_frame:start_frame+block_size:frames_per_sample].T * lsb , time
 
 
@@ -141,15 +142,22 @@ def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshol
 
 
 if __name__ == "__main__":
-    filename = 'div21.data.raw.h5'
+    filename = 'div28.data.raw.h5'
+    #X, t = load_from_file(filename, 0, 0, 0.2, 10 , 2000)
+    # plt.plot(t,X[:,:]);
+    # plt.ylabel('Volts');
+    # plt.xlabel('Seconds');
+
+
+    plt.show()
 
     Y = load_spikes_from_file(filename, 0, 0)
     #print(Y.head())
 
     amp_thresh = -10
 
-    # This code doesn't work but you need to filter out the spikes that are noise
     Y = Y.loc[Y['amplitude'].le(amp_thresh)]
+    print(np.shape(Y))
 
     #print(Y.head())
 
@@ -181,8 +189,9 @@ if __name__ == "__main__":
     '''
 
     #histogram of spike diffs
-    num_bins = 20
-    '''
+    num_bins = 'auto'
+    #num_bins = 1000
+    
     plt.figure()
     plt.subplot(231)
     plt.hist(spike_diffs['time'], num_bins, density = True)
@@ -207,7 +216,7 @@ if __name__ == "__main__":
     plt.subplot(234)
     plt.hist(1/spike_diffs['time'], num_bins, density = True, cumulative = True)
     plt.xlabel('f (1/s)')
-    plt.ylabel('$P(spike frequency) < f$')
+    plt.ylabel('$P(burst frequency) < f$')
 
     plt.subplot(235)
     plt.hist(stats.norm.pdf(spike_diffs['time']), num_bins, density = True)
@@ -218,25 +227,62 @@ if __name__ == "__main__":
     plt.subplot(236)
     plt.hist(stats.norm.pdf(1/spike_diffs['time']), num_bins, density = True, cumulative = True)
     plt.xlabel('f (1/s)')
-    plt.ylabel('$P(spike frequency) < f$')
+    plt.ylabel('$P(burst frequency) < f$')
 
-    '''
+    
     ###
     #scipy stats version?
-    IBI_hist = np.histogram(spike_diffs['time'], bins = num_bins)
+    IBI_hist = np.histogram(spike_diffs['time'], bins = num_bins, density = True)
     (IBI_data, IBI_bins) = IBI_hist
-    hist_dist = stats.rv_histogram(IBI_hist, density = False)
-    X = np.linspace(0, max(spike_diffs['time']), 100)
+    IBI_bin_midpoints = [(a + b) /2 for a,b in zip(IBI_bins[:-1], IBI_bins[1:])]
+
+    hist_dist = stats.rv_histogram(IBI_hist, density = True)
+    X = np.linspace(0, max(spike_diffs['time']), 500)
     
     plt.figure()
-    plt.hist(spike_diffs['time'], num_bins, density = True)
-    plt.plot(hist_dist)
-    plt.plot(X, hist_dist.pdf(X), label= 'PDF')
-    plt.plot(X, hist_dist.cdf(X), label= 'CDF')
+    plt.subplot(131)
+    plt.title('IBI distribution')
+    plt.scatter(IBI_bin_midpoints, IBI_data)
+    #plt.plot(X, hist_dist.pdf(X), label= 'PDF')
+    #plt.plot(X, hist_dist.cdf(X), label= 'CDF')
     
+    plt.legend()
+
     plt.xlabel('Interburst interval (s)')
     plt.ylabel('Probability of observation')
+    plt.yscale('log')
+    plt.xscale('log')
 
+    plt.subplot(132)
+    #NOTE - THIS NAN_TO_NUM THING IS HAPPENING
+    log_IBI_bin_midpoints = np.log(IBI_bin_midpoints)
+    log_IBI_data = np.log1p(IBI_data)
+
+    fit = stats.linregress(log_IBI_bin_midpoints, log_IBI_data)
+    plt.plot(log_IBI_bin_midpoints, fit.intercept + fit.slope*log_IBI_bin_midpoints, 'r', label=f'fitted line, $r^2 = {fit.rvalue**2:.2f}$')
+
+    plt.title('IBI distribution, log/log')
+    #plt.hist(spike_diffs['time'], num_bins, density = True)
+    plt.plot(log_IBI_bin_midpoints, log_IBI_data, label = "log fit")
+    #plt.loglog(X, hist_dist.pdf(X), label= 'PDF')
+    #plt.loglog(X, hist_dist.cdf(X), label= 'CDF')
+    
+    plt.legend()
+
+    plt.xlabel('log(Interburst interval (s))')
+    plt.ylabel('log(Probability of observation)')
+
+    plt.subplot(133)
+    plt.title('IBI distribution, log/log')
+    #plt.hist(spike_diffs['time'], num_bins, density = True)
+    plt.loglog(IBI_bin_midpoints, IBI_data, label = "log fit")
+    plt.loglog(X, hist_dist.pdf(X), label= 'PDF')
+    plt.loglog(X, hist_dist.cdf(X), label= 'CDF')
+    
+    plt.legend()
+
+    #plt.xlabel('log(Interburst interval (s))')
+    #plt.ylabel('log(Probability of observation)')
     plt.show()
     # X,t = load_from_file(filename, 0, 0, 1, 20, 800)
     # print(np.shape(X))
