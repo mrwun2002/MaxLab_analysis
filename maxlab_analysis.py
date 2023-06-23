@@ -14,7 +14,40 @@ ATTENTION: The data file format is not considered stable and may change in the f
 """
 
 
-def load_from_file(filename, well_no, recording_no, start_time, end_time, sample_frequency):
+def load_from_file_by_frames(filename, well_no, recording_no, start_frame, block_size, frames_per_sample = 1):
+    # The maximum allowed block size can be increased if needed,
+    # However, if the block size is too large, handling of the data in Python gets too slow.
+
+    #sample rate is 20000 samples per second
+    max_allowed_block_size = 40000
+    assert(block_size<=max_allowed_block_size)
+
+    with h5py.File(filename, "r") as h5_file:
+        h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
+
+        # Load settings from file
+        lsb = h5_object['settings']['lsb'][0]
+        sampling = h5_object['settings']['sampling'][0]
+
+        # compute time vector
+        #stop_frame = start_frame+block_size
+        time = np.arange(start_frame,start_frame+block_size * frames_per_sample,frames_per_sample) / 20e3
+
+        # Load raw data from file
+        groups = h5_object['groups']
+        #print(groups)
+        group0 = groups[next(iter(groups))]
+
+        try:
+            return group0['raw'][:,start_frame:start_frame+block_size*frames_per_sample:frames_per_sample].T * lsb , time
+        except OSError:
+            print("OSError thrown")
+            num_channels = np.shape(group0['raw'])[0]
+            placeholder_data = np.tile(np.arange(start_frame, start_frame + block_size*frames_per_sample, frames_per_sample), (num_channels, 1)).T
+            return placeholder_data, time
+
+
+def load_from_file(filename, well_no, recording_no, start_time, end_time, sample_frequency = 20000):
     '''
     The native sample rate is 20000 samples per second.
     Returns (voltage traces, time)
@@ -23,7 +56,6 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
     # However, if the block size is too large, handling of the data in Python gets too slow.
 
     with h5py.File(filename, "r") as h5_file:
-        print(h5_file)
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
 
         # Load settings from file
@@ -49,9 +81,46 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
         # Load raw data from file
         groups = h5_object['groups']
         group0 = groups[next(iter(groups))] #there always only seems to be one group within this calle "routed" - can we replace this code to be more specific?
-        return group0['raw'][:,start_frame:start_frame+block_size:frames_per_sample].T * lsb , time
+        
+        try:
+            return group0['raw'][:,start_frame:start_frame+block_size:frames_per_sample].T * lsb , time
+        except OSError:
+            print("OSError thrown")
+            num_channels = np.shape(group0['raw'])[0]
+            placeholder_data = np.tile(np.arange(start_frame, start_frame + block_size, frames_per_sample), (num_channels, 1)).T
+            return placeholder_data, time
 
 
+def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames_per_sample = 6, csv_name = None, delimiter = ','):
+    #get channel numbers, number of frames
+    with h5py.File(filename, "r") as h5_file:
+        h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
+        groups = h5_object['groups']
+        group0 = groups[next(iter(groups))]
+        
+        (num_channels, num_frames) = np.shape(group0['raw'])
+
+    column_headers = ['time'] + list(np.arange(1, num_channels + 1).astype(str))
+
+    if csv_name == None:
+        csv_name = filename + '.csv'
+    
+    #df = pd.DataFrame(columns = column_headers)
+    #df.to_csv(csv_name, mode = 'w', index = False, header = True)
+
+    with open(csv_name, 'w') as csvfile:
+        np.savetxt(csvfile, [], header = ' '.join(column_headers), delimiter=delimiter)
+
+    
+    for block_start in np.arange(0, num_frames, block_size * frames_per_sample): 
+        #block_end = min(block_start + block_size * frames_per_sample, num_frames)
+        frames_to_end = num_frames - block_start
+        print('writing frames ' + str(block_start) + ' to '  + str(block_start + min(block_size * frames_per_sample, frames_to_end)) + ' out of ' + str(num_frames))
+        X, t = load_from_file_by_frames(filename, well_no, recording_no, block_start, min(block_size, frames_to_end//frames_per_sample), frames_per_sample)
+        full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
+        with open(csv_name, 'a') as csvfile:
+            np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
+    
 
 def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = None):
     '''
