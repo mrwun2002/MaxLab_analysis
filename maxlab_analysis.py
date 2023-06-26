@@ -120,7 +120,35 @@ def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames
         full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
         with open(csv_name, 'a') as csvfile:
             np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
+
+def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames_per_sample = 16, save_name = None, delimiter = ','):
+    #get channel numbers, number of frames
+    with h5py.File(filename, "r") as h5_file:
+        h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
+        groups = h5_object['groups']
+        group0 = groups[next(iter(groups))]
+        
+        (num_channels, num_frames) = np.shape(group0['raw'])
+
+    if save_name == None:
+        save_name = filename
     
+    arr = np.empty((num_frames//frames_per_sample, num_channels + 1), 'float16')
+    
+    for block_start in np.arange(0, num_frames, block_size * frames_per_sample): 
+        #block_end = min(block_start + block_size * frames_per_sample, num_frames)
+        frames_to_end = num_frames - block_start
+        print('writing frames ' + str(block_start) + ' to '  + str(block_start + min(block_size * frames_per_sample, frames_to_end)) + ' out of ' + str(num_frames))
+        X, t = load_from_file_by_frames(filename, well_no, recording_no, block_start, min(block_size, frames_to_end//frames_per_sample), frames_per_sample)
+        full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
+        del X, t
+        print(full_arr.shape)
+        arr[block_start:block_start + min(block_size, frames_to_end//frames_per_sample), :] = full_arr
+        
+        # with open(csv_name, 'a') as csvfile:
+        #     np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
+
+    np.save(save_name, arr)
 
 def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = None):
     '''
