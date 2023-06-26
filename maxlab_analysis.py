@@ -134,17 +134,16 @@ def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames
     if save_name == None:
         save_name = filename
     
-    arr = np.empty((num_frames//frames_per_sample, num_channels + 1), 'float16')
+    arr = np.zeros((num_frames//frames_per_sample, num_channels + 1), 'float32')
     
-    for block_start in np.arange(0, num_frames, block_size * frames_per_sample): 
+    for i, block_start in enumerate(np.arange(0, num_frames, block_size * frames_per_sample)): 
         #block_end = min(block_start + block_size * frames_per_sample, num_frames)
         frames_to_end = num_frames - block_start
         print('writing frames ' + str(block_start) + ' to '  + str(block_start + min(block_size * frames_per_sample, frames_to_end)) + ' out of ' + str(num_frames))
         X, t = load_from_file_by_frames(filename, well_no, recording_no, block_start, min(block_size, frames_to_end//frames_per_sample), frames_per_sample)
         full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
         del X, t
-        print(full_arr.shape)
-        arr[block_start:block_start + min(block_size, frames_to_end//frames_per_sample), :] = full_arr
+        arr[i * block_size:i * block_size + min(block_size, frames_to_end//frames_per_sample), :] = full_arr
         
         # with open(csv_name, 'a') as csvfile:
         #     np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
