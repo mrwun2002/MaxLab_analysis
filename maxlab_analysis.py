@@ -93,6 +93,7 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
 
 def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames_per_sample = 6, csv_name = None, delimiter = ','):
     #get channel numbers, number of frames
+    #test
     with h5py.File(filename, "r") as h5_file:
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
         groups = h5_object['groups']
