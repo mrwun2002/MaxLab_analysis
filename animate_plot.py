@@ -24,6 +24,27 @@ t = data_from_npy[:, 0]
 X = data_from_npy[:, 1::2]
 
 
+
+Y = mla.load_spikes_from_file(filename, 0, 0, -10)
+print(np.shape(Y))
+
+start_time = time.time()
+Y_synchronized, spike_times = mla.find_synchronized_spikes(Y)
+end_time = time.time()
+print('time taken: ' + str(end_time - start_time) + ' s')
+print(Y_synchronized.head())
+print(spike_times.head())
+
+plt.figure(figsize = (10, 10))
+plt.scatter(Y['time'], Y['channel'], 0.5)
+#plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+plt.xlabel('Time (s)')
+plt.ylabel('Channels')
+plt.vlines(spike_times['time'], 0, max(Y['channel']), 'red', alpha=0.3)
+
+
+
+
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
@@ -46,38 +67,63 @@ X_pca = pca.fit_transform(X_scaled)
 
 print(pca.explained_variance_ratio_)
 
+
+
+
+
+
 end_time = 10
-step = 0.2
+step = 0.1
+speed_multiplier = 1
 
 pc1_lims = [np.min(X_pca[:, 0]), np.max(X_pca[:, 0])]
 pc2_lims = [np.min(X_pca[:, 1]), np.max(X_pca[:, 1])]
 pc3_lims = [np.min(X_pca[:, 2]), np.max(X_pca[:, 2])]
 
+
+
+
+
 def animate_func(num):
     #ax.clear()
+    index_step = int(step * 1250 * speed_multiplier)
+    s1 = ax_dict['a'].scatter(X_pca[0:num, 0], X_pca[0:num, 1], c = t[0:num], s = 2, alpha = 0.5)
 
-    ax1.scatter(X_pca[num, 0], X_pca[num, 1], c = t[num], s = 2, alpha = 0.5)
 
+    s2 = ax_dict['b'].scatter(X_pca[0:num, 0], X_pca[0:num, 2], c = t[0:num], s = 2, alpha = 0.5)
 
-    ax2.scatter(X_pca[num, 0], X_pca[num, 2], c = t[num], s = 2, alpha = 0.5)
+    current_time = num/1250/speed_multiplier
+    s3 = ax_dict['c'].scatter(Y[Y['time'] < current_time]['time'], Y[Y['time'] < current_time]['channel'], 0.5, cmap = Y[Y['time'] < current_time]['time'])
+    l = ax_dict['c'].vlines(current_time, 0, max(Y['channel']), 'green')
 
-    fig.suptitle('Time = ' + str(np.round(t[num] * 1000, decimals = 3)) + 'ms')
+    title = fig.suptitle('Principal axes')
+    return s1, s2, s3, l
 
 fig = plt.figure(figsize = (10, 10))
-ax1 = plt.subplot(121)
-ax1.set_xlabel('Principal component 1')
-ax1.set_ylabel('Principal component 2')
-ax1.set_xlim(pc1_lims)
-ax1.set_ylim(pc2_lims)
 
-ax2 = plt.subplot(122)
-ax2.set_xlabel('Principal component 1')
-ax2.set_ylabel('Principal component 3')
-ax2.set_xlim(pc1_lims)
-ax2.set_ylim(pc3_lims)
+ax_dict = fig.subplot_mosaic(
+    """
+    ab
+    cc
+    """
+)
+ax_dict['a'].set_xlabel('Principal component 1')
+ax_dict['a'].set_ylabel('Principal component 2')
+ax_dict['a'].set_xlim(pc1_lims)
+ax_dict['a'].set_ylim(pc2_lims)
+
+ax_dict['b'].set_xlabel('Principal component 1')
+ax_dict['b'].set_ylabel('Principal component 3')
+ax_dict['b'].set_xlim(pc1_lims)
+ax_dict['b'].set_ylim(pc3_lims)
+
+ax_dict['c'].scatter(Y[Y['time'] < end_time]['time'], Y[Y['time'] < end_time]['channel'], 0.5)
+#plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+ax_dict['c'].set_xlabel('Time (s)')
+ax_dict['c'].set_ylabel('Channels')
+ax_dict['c'].vlines(spike_times[spike_times['time'] < end_time]['time'], 0, max(Y['channel']), 'red', alpha=0.3)
 
 
-ax2 = plt.subplot(122)
 
-animation = FuncAnimation(fig, animate_func, interval = 200, frames = np.arange(0, end_time * 1250, step * 1250, dtype = int))
+animation = FuncAnimation(fig, animate_func, interval = step * 1000, frames = np.arange(0, end_time * 1250, step * 1250 * speed_multiplier, dtype = int), blit = True)
 plt.show()
