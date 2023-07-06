@@ -136,5 +136,7 @@ ax_dict['z'].vlines(spike_times[spike_times['time'] < end_time]['time'], 0, max(
 animation = FuncAnimation(fig, animate_func, interval = step * 1000, frames = np.arange(0, end_time * 1250, step * 1250 * speed_multiplier, dtype = int), blit = True)
 plt.show()
 
+save_start_time = time.time()
 animation.save('animation.gif')
 print('gif saved')
+print('time taken: ' + str(time.time() - save_start_time))
