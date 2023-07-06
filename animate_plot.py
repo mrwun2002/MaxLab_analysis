@@ -35,12 +35,12 @@ print('time taken: ' + str(end_time - start_time) + ' s')
 print(Y_synchronized.head())
 print(spike_times.head())
 
-# plt.figure(figsize = (10, 10))
-# plt.scatter(Y['time'], Y['channel'], 0.5)
-# #plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
-# plt.xlabel('Time (s)')
-# plt.ylabel('Channels')
-# plt.vlines(spike_times['time'], 0, max(Y['channel']), 'red', alpha=0.3)
+plt.figure(figsize = (10, 10))
+plt.scatter(Y['time'], Y['channel'], 0.5)
+#plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+plt.xlabel('Time (s)')
+plt.ylabel('Channels')
+plt.vlines(spike_times['time'], 0, max(Y['channel']), 'red', alpha=0.3)
 
 
 
@@ -71,38 +71,68 @@ print(pca.explained_variance_ratio_)
 
 
 
-start_time = 0
-end_time = 20
+start_time = 40
+end_time = 100
 step = 0.1
-speed_multiplier = 1
-points_per_time_step = 50 #this maxes out at step*1250*speed_multiplier
+speed_multiplier = 3
+framerate = 1250
+points_per_time_step = 50 #this maxes out at step*framerate*speed_multiplier
+save_name = 'animation_3'
+
 
 pc1_lims = [np.min(X_pca[:, 0]), np.max(X_pca[:, 0])]
 pc2_lims = [np.min(X_pca[:, 1]), np.max(X_pca[:, 1])]
 pc3_lims = [np.min(X_pca[:, 2]), np.max(X_pca[:, 2])]
 
-
+start_time_as_frame = start_time * framerate
 
 
 
 def animate_func(num):
-    #ax.clear()
-    index_step = int(step * 1250 * speed_multiplier)
-    s1 = ax_dict['a'].scatter(X_pca[0:num:index_step//points_per_time_step, 0], X_pca[0:num:index_step//points_per_time_step, 1], c = t[0:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[0], vmax = t[end_time * 1250])
+    for ax in ax_dict.values():
+        ax.clear()
+
+    ax_dict['a'].set_xlim(pc1_lims)
+    ax_dict['a'].set_ylim(pc2_lims)
+    ax_dict['b'].set_xlim(pc1_lims)
+    ax_dict['b'].set_ylim(pc3_lims)
+    ax_dict['c'].set_xlim(pc1_lims)
+    ax_dict['c'].set_ylim(pc3_lims)
+
+    ax_dict['a'].set_xlabel('Principal component 1')
+    ax_dict['a'].set_ylabel('Principal component 2')
+
+    ax_dict['b'].set_xlabel('Principal component 1')
+    ax_dict['b'].set_ylabel('Principal component 3')
+
+    ax_dict['c'].set_xlabel('Principal component 2')
+    ax_dict['c'].set_ylabel('Principal component 3')
 
 
-    s2 = ax_dict['b'].scatter(X_pca[0:num:index_step//points_per_time_step, 0], X_pca[0:num:index_step//points_per_time_step, 2], c = t[0:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[0], vmax = t[end_time * 1250])
+    index_step = int(step * framerate * speed_multiplier)
+    s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
 
-    s3 = ax_dict['c'].scatter(X_pca[0:num:index_step//points_per_time_step, 1], X_pca[0:num:index_step//points_per_time_step, 2], c = t[0:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[0], vmax = t[end_time * 1250])
 
-    current_time = num/1250/speed_multiplier
+    s2 = ax_dict['b'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 2], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
+
+    s3 = ax_dict['c'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 2], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
+
+
+
+    ax_dict['z'].scatter(Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['time'], Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['channel'], 0.5, c = Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['time'])
+    #plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+    ax_dict['z'].set_xlabel('Time (s)')
+    ax_dict['z'].set_ylabel('Channels')
+    ax_dict['z'].vlines(spike_times[(spike_times['time'] < end_time) & (spike_times['time'] >= start_time)]['time'], 0, max(Y['channel']), 'red', alpha=0.5)
+    current_time = num/framerate
     #s4 = ax_dict['z'].scatter(Y[Y['time'] < current_time]['time'], Y[Y['time'] < current_time]['channel'], 0.5, c = Y[Y['time'] < current_time]['time'])
     l = ax_dict['z'].vlines(current_time, 0, max(Y['channel']), 'green')
 
-    title = fig.suptitle('Principal axes')
+    plt.tight_layout()
+
     return s1, s2, s3, l#, s4
 
-fig = plt.figure(figsize = (10, 10))
+fig = plt.figure(figsize = (12, 8))
 
 ax_dict = fig.subplot_mosaic(
     """
@@ -110,33 +140,17 @@ ax_dict = fig.subplot_mosaic(
     zzz
     """
 )
-ax_dict['a'].set_xlabel('Principal component 1')
-ax_dict['a'].set_ylabel('Principal component 2')
-ax_dict['a'].set_xlim(pc1_lims)
-ax_dict['a'].set_ylim(pc2_lims)
-
-ax_dict['b'].set_xlabel('Principal component 1')
-ax_dict['b'].set_ylabel('Principal component 3')
-ax_dict['b'].set_xlim(pc1_lims)
-ax_dict['b'].set_ylim(pc3_lims)
-
-ax_dict['c'].set_xlabel('Principal component 2')
-ax_dict['c'].set_ylabel('Principal component 3')
-ax_dict['c'].set_xlim(pc1_lims)
-ax_dict['c'].set_ylim(pc3_lims)
-
-ax_dict['z'].scatter(Y[Y['time'] < end_time]['time'], Y[Y['time'] < end_time]['channel'], 0.5, c = Y[Y['time'] < end_time]['time'])
-#plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
-ax_dict['z'].set_xlabel('Time (s)')
-ax_dict['z'].set_ylabel('Channels')
-ax_dict['z'].vlines(spike_times[spike_times['time'] < end_time]['time'], 0, max(Y['channel']), 'red', alpha=0.5)
 
 
+all_frames = np.arange(start_time_as_frame, end_time * framerate, step * framerate * speed_multiplier, dtype = int)
 
-animation = FuncAnimation(fig, animate_func, interval = step * 1000, frames = np.arange(0, end_time * 1250, step * 1250 * speed_multiplier, dtype = int), blit = True)
+title = fig.suptitle('Principal axes')
+
+animation = FuncAnimation(fig, animate_func, interval = step * 1000, frames = all_frames, blit = True, repeat = False)
+
 plt.show()
 
 save_start_time = time.time()
-animation.save('animation.gif')
+animation.save(save_name + '.gif', writer = PillowWriter(fps=60))
 print('gif saved')
 print('time taken: ' + str(time.time() - save_start_time))
