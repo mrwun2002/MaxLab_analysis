@@ -15,7 +15,7 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-filename = "div21.data.raw.h5"
+filename = "20660div7.data.raw.h5"
 
 data_from_npy = np.load(filename + '.npy', mmap_mode = 'r', )
 #scale data
@@ -71,13 +71,13 @@ print(pca.explained_variance_ratio_)
 
 
 
-start_time = 40
-end_time = 100
+start_time = 0
+end_time = 200
 step = 0.1
-speed_multiplier = 3
+speed_multiplier = 10
 framerate = 1250
-points_per_time_step = 50 #this maxes out at step*framerate*speed_multiplier
-save_name = 'animation_3'
+points_per_time_step = 100 #this maxes out at step*framerate*speed_multiplier
+save_name = '20660div7_animation'
 
 
 pc1_lims = [np.min(X_pca[:, 0]), np.max(X_pca[:, 0])]
