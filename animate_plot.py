@@ -15,29 +15,44 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-filename = "20660div7.data.raw.h5"
+filestem = 'batch2_20439div15'
+
+filename = filestem + ".data.raw.h5"
+
+start_time = 0
+end_time = 600
+step = 0.1
+speed_multiplier = 20
+framerate = 1250
+points_per_time_step = 100 #this maxes out at step*framerate*speed_multiplier
+save_name = filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed"
+
+
+
+
+
 
 data_from_npy = np.load(filename + '.npy', mmap_mode = 'r', )
 #scale data
 
 t = data_from_npy[:, 0]
-X = data_from_npy[:, 1::2]
+X = data_from_npy[:, 1::]
 
 
 
 Y = mla.load_spikes_from_file(filename, 0, 0, -10)
 print(np.shape(Y))
 
-start_time = time.time()
+timer_start = time.time()
 Y_synchronized, spike_times = mla.find_synchronized_spikes(Y)
-end_time = time.time()
-print('time taken: ' + str(end_time - start_time) + ' s')
+timer_end = time.time()
+print('time taken: ' + str(timer_end - timer_start) + ' s')
 print(Y_synchronized.head())
 print(spike_times.head())
 
 plt.figure(figsize = (10, 10))
 plt.scatter(Y['time'], Y['channel'], 0.5)
-#plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+#plt.scatter(Y_synchronized['time'], Y_synchronized['channel'], 1, 'r')
 plt.xlabel('Time (s)')
 plt.ylabel('Channels')
 plt.vlines(spike_times['time'], 0, max(Y['channel']), 'red', alpha=0.3)
@@ -49,15 +64,15 @@ scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 #Plot a subset of the channels
-# plt.figure(figsize = (10, 5))
-# plt.subplot(121)
-# plt.plot(t[:], X[:, ::10], linewidth = 0.5)
-# plt.title('pre scaling')
+plt.figure(figsize = (10, 5))
+plt.subplot(121)
+plt.plot(t[:], X[:, ::10], linewidth = 0.5)
+plt.title('pre scaling')
 
-# plt.subplot(122)
-# plt.plot(t[:], X_scaled[:, ::10], linewidth = 0.5)
-# plt.title('post scaling')
-# plt.show()
+plt.subplot(122)
+plt.plot(t[:], X_scaled[:, ::10], linewidth = 0.5)
+plt.title('post scaling')
+plt.show()
 
 
 n_components = 6
@@ -70,22 +85,21 @@ print(pca.explained_variance_ratio_)
 
 
 
-
-start_time = 0
-end_time = 200
-step = 0.1
-speed_multiplier = 10
-framerate = 1250
-points_per_time_step = 100 #this maxes out at step*framerate*speed_multiplier
-save_name = '20660div7_animation'
-
-
 pc1_lims = [np.min(X_pca[:, 0]), np.max(X_pca[:, 0])]
 pc2_lims = [np.min(X_pca[:, 1]), np.max(X_pca[:, 1])]
 pc3_lims = [np.min(X_pca[:, 2]), np.max(X_pca[:, 2])]
 
 start_time_as_frame = start_time * framerate
 
+
+fig_width = 3
+plt.figure(figsize = (fig_width * 5, (int(np.ceil(n_components/fig_width)) * 5)))
+for i in np.arange(1, n_components + 1):
+    plt.subplot(int(np.ceil(n_components/fig_width)), fig_width, i)
+    plt.plot(t, X_pca[:, i-1], linewidth = 0.5, alpha = 0.9)
+    plt.title('Principal component ' + str(i))
+plt.tight_layout()
+plt.show()
 
 
 def animate_func(num):
@@ -107,7 +121,6 @@ def animate_func(num):
 
     ax_dict['c'].set_xlabel('Principal component 2')
     ax_dict['c'].set_ylabel('Principal component 3')
-
 
     index_step = int(step * framerate * speed_multiplier)
     s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
