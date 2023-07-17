@@ -245,7 +245,7 @@ def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshol
 
 
 
-def animate_pca(filestem, start_time, end_time, animation_framerate = 10, recording_framerate = 1250, speed_multiplier = 1, points_per_animation_frame = None, data_source = None, save_gif = True, save_name = None):
+def animate_pca(filestem, start_time, end_time, animation_framerate = 10, recording_framerate = 1250, speed_multiplier = 1, points_per_animation_frame = None, data_source = None, save_gif = True, save_name = None, reduce_memory_usage = False):
     '''
     Animates the first 3 axes of pca.
     filestem is the part of the data source before '.data.raw.h5'.
@@ -264,10 +264,8 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
 
     recording_frames_per_animation_frame_subsample_rate = int(recording_frames_per_animation_frame/points_per_animation_frame)
     
-    try: 
-        assert(math.isclose(recording_frames_per_animation_frame_subsample_rate, recording_frames_per_animation_frame/points_per_animation_frame))
-    except AssertionError:
-        print("(recording_framerate * speed_multiplier / animation_framerate) / points_per_animation_frame must be an integer.")
+
+    assert math.isclose(recording_frames_per_animation_frame_subsample_rate, recording_frames_per_animation_frame/points_per_animation_frame), "(recording_framerate * speed_multiplier / animation_framerate) / points_per_animation_frame must be an integer. \n (recording_framerate * speed_multiplier / animation_framerate) = " + str(recording_frames_per_animation_frame)
 
     if data_source == None: 
         data_source = filestem + ".data.raw.h5"
@@ -278,7 +276,11 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
 
     #scale data
     t = data_from_npy[:, 0]
-    X = data_from_npy[:, 1::]
+
+    if reduce_memory_usage:
+        X = data_from_npy[:, 1::5]
+    else:
+        X = data_from_npy[:, 1::]
     Y = load_spikes_from_file(data_source, 0, 0, -10)
     Y_synchronized, spike_times = find_synchronized_spikes(Y)
 

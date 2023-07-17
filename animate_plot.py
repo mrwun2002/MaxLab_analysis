@@ -122,7 +122,7 @@ def animate_func(num):
     ax_dict['c'].set_xlabel('Principal component 2')
     ax_dict['c'].set_ylabel('Principal component 3')
 
-    index_step = int(step * framerate * speed_multiplier)
+    index_step = step * framerate * speed_multiplier
     s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
 
 
