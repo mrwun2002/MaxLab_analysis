@@ -1,12 +1,19 @@
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter, MovieWriter
+
+
 #import tables
 import h5py
 import numpy as np
 import pandas as pd
 import time
+import math
 
 from scipy.signal import find_peaks
 import scipy.stats as stats
+
+from sklearn.decomposition import PCA, NMF
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 """
 This script shows how to open a raw data file and how to read and interpret the data. 
@@ -238,159 +245,130 @@ def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshol
 
 
 
+def animate_pca(filestem, start_time, end_time, animation_framerate = 10, recording_framerate = 1250, speed_multiplier = 1, points_per_animation_frame = None, data_source = None, save_gif = True, save_name = None, reduce_memory_usage = False):
+    '''
+    Animates the first 3 axes of pca.
+    filestem is the part of the data source before '.data.raw.h5'.
+    start_time and end_time are in seconds. 
+    animation_framerate and recording_framerate are in Hz.
+    points_per_animation_frame defaults to, and maxes out at, recording_framerate * speed_multiplier / animation_framerate. 
+    The passed-in value must be equal to this maximum points_per_animation frame value divided by an integer.
+    data_source defaults to filestem + '.data.raw.h5'.
+    save_name defaults to filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed_" + str(points_per_animation_frame) + "_pts_per_" + str(animation_framerate) + "s"
+    '''
+
+    recording_frames_per_animation_frame = recording_framerate * speed_multiplier / animation_framerate
+
+    if points_per_animation_frame == None:
+        points_per_animation_frame = recording_frames_per_animation_frame
+
+    recording_frames_per_animation_frame_subsample_rate = int(recording_frames_per_animation_frame/points_per_animation_frame)
+    
+
+    assert math.isclose(recording_frames_per_animation_frame_subsample_rate, recording_frames_per_animation_frame/points_per_animation_frame), "(recording_framerate * speed_multiplier / animation_framerate) / points_per_animation_frame must be an integer. \n (recording_framerate * speed_multiplier / animation_framerate) = " + str(recording_frames_per_animation_frame)
+
+    if data_source == None: 
+        data_source = filestem + ".data.raw.h5"
+    if save_name == None:
+        save_name = filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed_" + str(points_per_animation_frame) + "_pts_per_" + str(animation_framerate) + "s"
+
+    data_from_npy = np.load(data_source + '.npy', mmap_mode = 'r', )
+
+    #scale data
+    t = data_from_npy[:, 0]
+
+    if reduce_memory_usage:
+        X = data_from_npy[:, 1::5]
+    else:
+        X = data_from_npy[:, 1::]
+    Y = load_spikes_from_file(data_source, 0, 0, -10)
+    Y_synchronized, spike_times = find_synchronized_spikes(Y)
+
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    n_components = 6
+
+    pca = PCA(n_components)
+    X_pca = pca.fit_transform(X_scaled)
+
+    pc1_lims = [np.min(X_pca[:, 0]), np.max(X_pca[:, 0])]
+    pc2_lims = [np.min(X_pca[:, 1]), np.max(X_pca[:, 1])]
+    pc3_lims = [np.min(X_pca[:, 2]), np.max(X_pca[:, 2])]
+
+    start_time_as_frame = start_time * recording_framerate
+    end_time_as_frame = end_time * recording_framerate
+
+
+    def animate_func(num):
+        for ax in ax_dict.values():
+            ax.clear()
+
+        ax_dict['a'].set_xlim(pc1_lims)
+        ax_dict['a'].set_ylim(pc2_lims)
+        ax_dict['b'].set_xlim(pc1_lims)
+        ax_dict['b'].set_ylim(pc3_lims)
+        ax_dict['c'].set_xlim(pc1_lims)
+        ax_dict['c'].set_ylim(pc3_lims)
+
+        ax_dict['a'].set_xlabel('Principal component 1')
+        ax_dict['a'].set_ylabel('Principal component 2')
+
+        ax_dict['b'].set_xlabel('Principal component 1')
+        ax_dict['b'].set_ylabel('Principal component 3')
+
+        ax_dict['c'].set_xlabel('Principal component 2')
+        ax_dict['c'].set_ylabel('Principal component 3')
+
+        s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 0], X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 1], c = t[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time_as_frame])
+
+
+        s2 = ax_dict['b'].scatter(X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 0], X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 2], c = t[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time_as_frame])
+
+        s3 = ax_dict['c'].scatter(X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 1], X_pca[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate, 2], c = t[start_time_as_frame:num:recording_frames_per_animation_frame_subsample_rate], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time_as_frame])
+
+
+
+        ax_dict['z'].scatter(Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['time'], Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['channel'], 0.5, c = Y[(Y['time'] < end_time) & (Y['time'] >= start_time)]['time'])
+        #plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
+        ax_dict['z'].set_xlabel('Time (s)')
+        ax_dict['z'].set_ylabel('Channels')
+        ax_dict['z'].vlines(spike_times[(spike_times['time'] < end_time) & (spike_times['time'] >= start_time)]['time'], 0, max(Y['channel']), 'red', alpha=0.5)
+        current_time = num/recording_framerate
+        #s4 = ax_dict['z'].scatter(Y[Y['time'] < current_time]['time'], Y[Y['time'] < current_time]['channel'], 0.5, c = Y[Y['time'] < current_time]['time'])
+        l = ax_dict['z'].vlines(current_time, 0, max(Y['channel']), 'green')
+
+        plt.tight_layout()
+
+        return s1, s2, s3, l#, s4
+
+    fig = plt.figure(figsize = (12, 8))
+
+    ax_dict = fig.subplot_mosaic(
+        """
+        abc
+        zzz
+        """
+    )
+
+
+    all_animation_frames = np.arange(start_time_as_frame, end_time_as_frame, recording_frames_per_animation_frame, dtype = int)
+
+    title = fig.suptitle('Principal axes')
+
+    animation = FuncAnimation(fig, animate_func, interval = 1000/animation_framerate, frames = all_animation_frames, blit = True, repeat = False)
+
+    #plt.show()
+
+    if save_gif:
+        save_start_time = time.time()
+        animation.save(save_name + '.gif', writer = PillowWriter(fps=60))
+        print('gif saved')
+        print('time taken: ' + str(time.time() - save_start_time))
+    
+    return fig
+
+
 if __name__ == "__main__":
-    filename = 'div28.data.raw.h5'
-    #X, t = load_from_file(filename, 0, 0, 0.2, 10 , 2000)
-    # plt.plot(t,X[:,:]);
-    # plt.ylabel('Volts');
-    # plt.xlabel('Seconds');
-
-
-    plt.show()
-
-    Y = load_spikes_from_file(filename, 0, 0)
-    #print(Y.head())
-
-    amp_thresh = -10
-
-    Y = Y.loc[Y['amplitude'].le(amp_thresh)]
-    print(np.shape(Y))
-
-    #print(Y.head())
-
-    start_time = time.time()
-    Y_synchronized, spike_times = find_synchronized_spikes(Y, plot_firing = True)
-    end_time = time.time()
-    print('time taken: ' + str(end_time - start_time) + ' s')
-    print(Y_synchronized.head())
-    print(spike_times.head())
-    #print(len(spike_times))
-
-    # Now we need to look at the data with your eyeballs
-    plt.figure()
-    plt.scatter(Y['time'], Y['channel'], 1)
-    #plt.scatter(Y_synchronized['frameno'], Y_synchronized['channel'], 1, 'r')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Channels')
-    plt.vlines(spike_times['time'], 0, max(Y['channel']), 'red', alpha=0.3)
-
-
-    #get differences between spike times
-    spike_diffs = spike_times.diff().dropna()
-    '''
-    print(spike_diffs.head())
-    plt.figure()
-    plt.scatter(spike_diffs['time'], spike_diffs['fraction channels active'])
-    plt.xlabel('Time (s)')
-    plt.ylabel('Channels')
-    '''
-
-    #histogram of spike diffs
-    num_bins = 'auto'
-    #num_bins = 1000
-    
-    plt.figure()
-    plt.subplot(231)
-    plt.hist(spike_diffs['time'], num_bins, density = True)
-    plt.xlabel('Interburst interval (s)')
-    plt.ylabel('Probability of observation')
-
-    print(spike_diffs['time'])
-    print(1/spike_diffs['time'])
-
-    plt.subplot(232)
-    plt.hist(1/spike_diffs['time'], num_bins, density = True)
-    plt.xlabel('Burst frequency (1/s)')
-    plt.ylabel('Probability of observation')
-
-
-    plt.subplot(233)
-    plt.hist(spike_diffs['time'], num_bins, density = True, cumulative = True)
-    plt.xlabel('t (s)')
-    plt.ylabel('$P(IBI) < t$')
-    
-
-    plt.subplot(234)
-    plt.hist(1/spike_diffs['time'], num_bins, density = True, cumulative = True)
-    plt.xlabel('f (1/s)')
-    plt.ylabel('$P(burst frequency) < f$')
-
-    plt.subplot(235)
-    plt.hist(stats.norm.pdf(spike_diffs['time']), num_bins, density = True)
-    plt.xlabel('t (s)')
-    plt.ylabel('$P(IBI) < t$')
-    
-
-    plt.subplot(236)
-    plt.hist(stats.norm.pdf(1/spike_diffs['time']), num_bins, density = True, cumulative = True)
-    plt.xlabel('f (1/s)')
-    plt.ylabel('$P(burst frequency) < f$')
-
-    
-    ###
-    #scipy stats version?
-    IBI_hist = np.histogram(spike_diffs['time'], bins = num_bins, density = True)
-    (IBI_data, IBI_bins) = IBI_hist
-    IBI_bin_midpoints = [(a + b) /2 for a,b in zip(IBI_bins[:-1], IBI_bins[1:])]
-
-    hist_dist = stats.rv_histogram(IBI_hist, density = True)
-    X = np.linspace(0, max(spike_diffs['time']), 500)
-    
-    plt.figure()
-    plt.subplot(131)
-    plt.title('IBI distribution')
-    plt.scatter(IBI_bin_midpoints, IBI_data)
-    #plt.plot(X, hist_dist.pdf(X), label= 'PDF')
-    #plt.plot(X, hist_dist.cdf(X), label= 'CDF')
-    
-    plt.legend()
-
-    plt.xlabel('Interburst interval (s)')
-    plt.ylabel('Probability of observation')
-    plt.yscale('log')
-    plt.xscale('log')
-
-    plt.subplot(132)
-    #NOTE - THIS NAN_TO_NUM THING IS HAPPENING
-    log_IBI_bin_midpoints = np.log(IBI_bin_midpoints)
-    log_IBI_data = np.log1p(IBI_data)
-
-    fit = stats.linregress(log_IBI_bin_midpoints, log_IBI_data)
-    plt.plot(log_IBI_bin_midpoints, fit.intercept + fit.slope*log_IBI_bin_midpoints, 'r', label=f'fitted line, $r^2 = {fit.rvalue**2:.2f}$')
-
-    plt.title('IBI distribution, log/log')
-    #plt.hist(spike_diffs['time'], num_bins, density = True)
-    plt.plot(log_IBI_bin_midpoints, log_IBI_data, label = "log fit")
-    #plt.loglog(X, hist_dist.pdf(X), label= 'PDF')
-    #plt.loglog(X, hist_dist.cdf(X), label= 'CDF')
-    
-    plt.legend()
-
-    plt.xlabel('log(Interburst interval (s))')
-    plt.ylabel('log(Probability of observation)')
-
-    plt.subplot(133)
-    plt.title('IBI distribution, log/log')
-    #plt.hist(spike_diffs['time'], num_bins, density = True)
-    plt.loglog(IBI_bin_midpoints, IBI_data, label = "log fit")
-    plt.loglog(X, hist_dist.pdf(X), label= 'PDF')
-    plt.loglog(X, hist_dist.cdf(X), label= 'CDF')
-    
-    plt.legend()
-
-    #plt.xlabel('log(Interburst interval (s))')
-    #plt.ylabel('log(Probability of observation)')
-    plt.show()
-    # X,t = load_from_file(filename, 0, 0, 1, 20, 800)
-    # print(np.shape(X))
-
-    # plt.plot(t,X[:,:]);
-    # plt.ylabel('Volts');
-    # plt.xlabel('Seconds');
-
-
-    # plt.show()
-
-
-
-    # plt.savefig('plot.png')
+    pass
