@@ -19,12 +19,13 @@ filestem = 'batch2_20439div15'
 
 filename = filestem + ".data.raw.h5"
 
-start_time = 0
-end_time = 600
+start_time = 100
+end_time = 110
 step = 0.1
-speed_multiplier = 20
+speed_multiplier = 0.5
 framerate = 1250
 points_per_time_step = 100 #this maxes out at step*framerate*speed_multiplier
+points_per_time_step = step*framerate*speed_multiplier
 save_name = filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed"
 
 
@@ -123,12 +124,12 @@ def animate_func(num):
     ax_dict['c'].set_ylabel('Principal component 3')
 
     index_step = step * framerate * speed_multiplier
-    s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
+    s1 = ax_dict['a'].scatter(X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 0], X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 1], c = t[start_time_as_frame:num:int(index_step/points_per_time_step)], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
 
 
-    s2 = ax_dict['b'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 0], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 2], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
+    s2 = ax_dict['b'].scatter(X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 0], X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 2], c = t[start_time_as_frame:num:int(index_step/points_per_time_step)], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
 
-    s3 = ax_dict['c'].scatter(X_pca[start_time_as_frame:num:index_step//points_per_time_step, 1], X_pca[start_time_as_frame:num:index_step//points_per_time_step, 2], c = t[start_time_as_frame:num:index_step//points_per_time_step], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
+    s3 = ax_dict['c'].scatter(X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 1], X_pca[start_time_as_frame:num:int(index_step/points_per_time_step), 2], c = t[start_time_as_frame:num:int(index_step/points_per_time_step)], s = 2, alpha = 0.5, vmin = t[start_time_as_frame], vmax = t[end_time * framerate])
 
 
 
