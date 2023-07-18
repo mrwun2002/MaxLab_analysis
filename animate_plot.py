@@ -15,14 +15,14 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-filestem = 'batch2_20439div15'
+filestem = 'batch2_20647div14'
 
 filename = filestem + ".data.raw.h5"
 
 start_time = 100
-end_time = 110
+end_time = 200
 step = 0.1
-speed_multiplier = 0.5
+speed_multiplier = 5
 framerate = 1250
 points_per_time_step = 100 #this maxes out at step*framerate*speed_multiplier
 points_per_time_step = step*framerate*speed_multiplier
