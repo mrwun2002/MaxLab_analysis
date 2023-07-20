@@ -15,6 +15,10 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
+import sys
+
+sys.path.append('data/')
+
 filename = "20660div7.data.raw.h5"
 
 data_from_npy = np.load(filename + '.npy', mmap_mode = 'r', )

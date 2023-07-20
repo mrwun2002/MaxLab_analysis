@@ -155,7 +155,7 @@ def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames
         # with open(csv_name, 'a') as csvfile:
         #     np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
 
-    np.save(save_name, arr)
+    np.save('data/' + save_name, arr)
 
 def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = None):
     '''

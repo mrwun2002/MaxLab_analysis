@@ -15,6 +15,10 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
+import sys
+
+sys.path.append('data/')
+
 filestem = 'batch2_20647div14'
 
 filename = filestem + ".data.raw.h5"
@@ -165,6 +169,6 @@ animation = FuncAnimation(fig, animate_func, interval = step * 1000, frames = al
 plt.show()
 
 save_start_time = time.time()
-animation.save(save_name + '.gif', writer = PillowWriter(fps=60))
+animation.save('data/' + save_name + '.gif', writer = PillowWriter(fps=60))
 print('gif saved')
 print('time taken: ' + str(time.time() - save_start_time))
