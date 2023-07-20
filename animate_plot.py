@@ -15,10 +15,6 @@ import scipy.stats as stats
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-import sys
-
-sys.path.append('data/')
-
 filestem = 'batch2_20647div14'
 
 filename = filestem + ".data.raw.h5"

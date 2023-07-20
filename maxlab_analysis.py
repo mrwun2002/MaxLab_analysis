@@ -111,7 +111,7 @@ def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames
     column_headers = ['time'] + list(np.arange(1, num_channels + 1).astype(str))
 
     if csv_name == None:
-        csv_name = filename + '.csv'
+        csv_name = 'data/' + filename + '.csv'
     
     #df = pd.DataFrame(columns = column_headers)
     #df.to_csv(csv_name, mode = 'w', index = False, header = True)
@@ -139,7 +139,7 @@ def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames
         (num_channels, num_frames) = np.shape(group0['raw'])
 
     if save_name == None:
-        save_name = filename
+        save_name = 'data/' + filename
     
     arr = np.zeros((num_frames//frames_per_sample, num_channels + 1), 'float32')
     
@@ -155,7 +155,7 @@ def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames
         # with open(csv_name, 'a') as csvfile:
         #     np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
 
-    np.save('data/' + save_name, arr)
+    np.save(save_name, arr)
 
 def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = None):
     '''
@@ -270,7 +270,7 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
     if data_source == None: 
         data_source = filestem + ".data.raw.h5"
     if save_name == None:
-        save_name = filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed_" + str(points_per_animation_frame) + "_pts_per_" + str(animation_framerate) + "s"
+        save_name = 'animations/' + filestem + "_animation_" + str(start_time) + "-" + str(end_time) + "s_" + str(speed_multiplier) + "x_speed_" + str(points_per_animation_frame) + "_pts_per_" + str(animation_framerate) + "s"
 
     data_from_npy = np.load(data_source + '.npy', mmap_mode = 'r', )
 

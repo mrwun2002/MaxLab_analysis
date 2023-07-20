@@ -10,10 +10,6 @@ from scipy.signal import find_peaks
 import scipy.stats as stats
 from sklearn.decomposition import PCA
 
-import sys
-
-sys.path.append('data/')
-
 
 
 filename = "div28.data.raw.h5"
