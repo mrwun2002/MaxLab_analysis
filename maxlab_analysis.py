@@ -21,7 +21,7 @@ ATTENTION: The data file format is not considered stable and may change in the f
 """
 
 
-def load_from_file_by_frames(filename, well_no, recording_no, start_frame, block_size, frames_per_sample = 1):
+def load_from_file_by_frames(filename,  start_frame, block_size, well_no = 0, recording_no = 0,  frames_per_sample = 1):
     # The maximum allowed block size can be increased if needed,
     # However, if the block size is too large, handling of the data in Python gets too slow.
 
@@ -54,7 +54,7 @@ def load_from_file_by_frames(filename, well_no, recording_no, start_frame, block
             return placeholder_data, time
 
 
-def load_from_file(filename, well_no, recording_no, start_time, end_time, sample_frequency = 20000):
+def load_from_file(filename, start_time, end_time,  well_no = 0, recording_no = 0, sample_frequency = 20000):
     '''
     The native sample rate is 20000 samples per second.
     Returns (voltage traces, time)
@@ -98,7 +98,7 @@ def load_from_file(filename, well_no, recording_no, start_time, end_time, sample
             return placeholder_data, time
 
 
-def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames_per_sample = 6, csv_name = None, delimiter = ','):
+def recording_to_csv(filename, well_no = 0, recording_no = 0, block_size = 40000, frames_per_sample = 6, csv_name = None, delimiter = ','):
     #get channel numbers, number of frames
     #test
     with h5py.File(filename, "r") as h5_file:
@@ -129,7 +129,7 @@ def recording_to_csv(filename, well_no, recording_no, block_size = 40000, frames
         with open(csv_name, 'a') as csvfile:
             np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
 
-def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames_per_sample = 16, save_name = None, delimiter = ','):
+def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = None, delimiter = ','):
     #get channel numbers, number of frames
     with h5py.File(filename, "r") as h5_file:
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
@@ -157,7 +157,7 @@ def recording_to_npy(filename, well_no, recording_no, block_size = 40000, frames
 
     np.save(save_name, arr)
 
-def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = None):
+def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None):
     '''
     Returns a pd dataset of the spike data)
     '''
@@ -190,10 +190,38 @@ def load_spikes_from_file(filename, well_no, recording_no, voltage_threshold = N
 
         
         return spike_pd_dataset
+    
+def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary'):#TODO: TEST THIS!!!
+    '''
+    Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy array. mode must be 'binary' or 'count'
+    '''
+
+    assert(mode == 'binary' or mode == 'count')
+    last_spike_t = max(spike_df['time'])
+    num_channels = max(spike_df['channel'] - 1) #channels are zero-indexed
+    arr = np.zeros((last_spike_t//bin_size + 1, num_channels), dtype=int)
+
+    bin_start_t = 0
+    i = 0
+    while bin_start_t <= last_spike_t:
+        sub_df = spike_df[(spike_df['time'] >= bin_start_t) & (spike_df['time'] < bin_start_t + bin_size)]
+        for channel_number in sub_df['channels']:
+            if mode == 'binary':
+                arr[i, channel_number] = 1
+            elif mode == 'count':
+                arr[i, channel_number] += 1
+        bin_start_t += bin_size
+
+    return arr
+
+def spike_array_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None, bin_size = 0.05, mode = 'binary'):
+    spike_df = load_spikes_from_file(filename, well_no, recording_no, voltage_threshold)
+    return bin_spike_data(spike_df, bin_size, mode)
+
 
 def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshold = None, threshold_std_multiplier = 4, plot_firing = False): #TODO: make fraction threshold dependent upon distribution of numbers of neurons firing in a certain time delta
     '''
-    Takes in a pd dataframe of spike data, a percentage threshold for spikes to be considered "synchronized", and a time delta (measured in frames) in which to search for synchronized spikes.
+    Takes in a pd dataframe of spike data, a percentage threshold for spikes to be considered "synchronized", and a time delta (measured in seconds) in which to search for synchronized spikes.
     Returns a pd dataframe containing just the synchronized spikes as well as a dataframe containin the start times of each spike, to the lowest time delta divided by two, and the number of channels active during each spike.
     '''
     num_channels = df['channel'].nunique() #Do we want this to be the number of active channels? the largest channel number?
