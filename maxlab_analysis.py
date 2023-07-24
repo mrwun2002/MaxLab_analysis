@@ -203,15 +203,19 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary'):#TO
 
     bin_start_t = 0
     i = 0
+    num_spikes_lost = 0
     while bin_start_t <= last_spike_t:
         sub_df = spike_df[(spike_df['time'] >= bin_start_t) & (spike_df['time'] < bin_start_t + bin_size)]
         for channel_number in sub_df['channels']:
             if mode == 'binary':
+                if arr[i, channel_number] == 1:
+                    num_spikes_lost += 1
                 arr[i, channel_number] = 1
             elif mode == 'count':
                 arr[i, channel_number] += 1
         bin_start_t += bin_size
 
+    print('num spikes lost: ' + str(num_spikes_lost) + "/" + str(len(spike_df.index)) + '=' + str(num_spikes_lost/len(spike_df.index)))
     return arr
 
 def spike_array_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None, bin_size = 0.05, mode = 'binary'):
