@@ -141,7 +141,7 @@ def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 4000
     if save_name == None:
         save_name = 'data/' + filename
     
-    arr = np.zeros((num_frames//frames_per_sample, num_channels + 1), 'float32')
+    arr = np.zeros((int(num_frames/frames_per_sample), num_channels + 1), 'float32')
     
     for i, block_start in enumerate(np.arange(0, num_frames, block_size * frames_per_sample)): 
         #block_end = min(block_start + block_size * frames_per_sample, num_frames)
@@ -157,9 +157,9 @@ def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 4000
 
     np.save(save_name, arr)
 
-def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None):
+def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None, **kwargs):
     '''
-    Returns a pd dataset of the spike data)
+    Returns a pd dataset of the spike data
     '''
     with h5py.File(filename, "r") as h5_file:
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
@@ -191,22 +191,22 @@ def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_thres
         
         return spike_pd_dataset
     
-def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary'):#TODO: TEST THIS!!!
+def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary', **kwargs):#TODO: TEST THIS!!!
     '''
-    Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy array. mode must be 'binary' or 'count'
+    Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy array. mode must be 'binary' or 'count'. bin_size is in s.
     '''
 
-    assert(mode == 'binary' or mode == 'count')
+    assert (mode == 'binary' or mode == 'count'), "mode must be binary or count."
     last_spike_t = max(spike_df['time'])
-    num_channels = max(spike_df['channel'] - 1) #channels are zero-indexed
-    arr = np.zeros((last_spike_t//bin_size + 1, num_channels), dtype=int)
+    num_channels = max(spike_df['channel'] + 1) #channels are zero-indexed
+    arr = np.zeros((int(last_spike_t/bin_size + 1), num_channels), dtype=int)
 
     bin_start_t = 0
     i = 0
     num_spikes_lost = 0
     while bin_start_t <= last_spike_t:
         sub_df = spike_df[(spike_df['time'] >= bin_start_t) & (spike_df['time'] < bin_start_t + bin_size)]
-        for channel_number in sub_df['channels']:
+        for channel_number in sub_df['channel']:
             if mode == 'binary':
                 if arr[i, channel_number] == 1:
                     num_spikes_lost += 1
@@ -214,13 +214,24 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary'):#TO
             elif mode == 'count':
                 arr[i, channel_number] += 1
         bin_start_t += bin_size
-
+        i += 1 
     print('num spikes lost: ' + str(num_spikes_lost) + "/" + str(len(spike_df.index)) + '=' + str(num_spikes_lost/len(spike_df.index)))
+
     return arr
 
-def spike_array_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None, bin_size = 0.05, mode = 'binary'):
-    spike_df = load_spikes_from_file(filename, well_no, recording_no, voltage_threshold)
-    return bin_spike_data(spike_df, bin_size, mode)
+def spike_array_from_file(filename, save = True, save_name = None, **kwargs):
+    """
+    Runs load_spikes_from_file() and then bin_spike_data() on the result.
+    """
+    spike_df = load_spikes_from_file(filename, **kwargs)
+    arr = bin_spike_data(spike_df, **kwargs)
+    if save:
+        if save_name == None:
+            save_name = filename + '.binned_spikes'
+
+    np.save(save_name, arr)
+
+    return arr
 
 
 def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshold = None, threshold_std_multiplier = 4, plot_firing = False): #TODO: make fraction threshold dependent upon distribution of numbers of neurons firing in a certain time delta
