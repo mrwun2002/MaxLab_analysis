@@ -191,9 +191,9 @@ def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_thres
         
         return spike_pd_dataset
     
-def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary', **kwargs):#TODO: TEST THIS!!!
+def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', **kwargs):#TODO: TEST THIS!!!
     '''
-    Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy array. mode must be 'binary' or 'count'. bin_size is in s.
+    Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy arrayReturns a sparse numpy array with data on the spikes that occur within each time bin.. mode must be 'binary' or 'count'. bin_size is in s.
     '''
 
     assert (mode == 'binary' or mode == 'count'), "mode must be binary or count."
@@ -221,7 +221,8 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.05, mode = 'binary', **k
 
 def spike_array_from_file(filename, save = True, save_name = None, **kwargs):
     """
-    Runs load_spikes_from_file() and then bin_spike_data() on the result.
+    Runs load_spikes_from_file() and then bin_spike_data() on the result. See those for documentation on parameters.
+    Returns a sparse numpy array with one axis as time and the other axis as channels with data on the spikes that occur within each time bin.
     """
     spike_df = load_spikes_from_file(filename, **kwargs)
     arr = bin_spike_data(spike_df, **kwargs)
