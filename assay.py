@@ -69,7 +69,7 @@ class StimulationAssay(Assay):
 
 
 
-parent_folder = 'E:'
+parent_folder = 'D:/'
 project_name = 'Summer_2023_Batch_2'
 
 search_folder = Path(parent_folder, project_name)
@@ -93,6 +93,7 @@ else:
 print(all_network_scans)
 
 print(all_network_scans['20439'][1])
+print(list(all_network_scans['20439'][1].path.glob('*.*')))
 
 
 
