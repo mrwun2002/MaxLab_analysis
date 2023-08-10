@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import time
 import math
+import sys
 
 from scipy.signal import find_peaks
 import scipy.stats as stats
@@ -47,11 +48,11 @@ def load_from_file_by_frames(filename,  start_frame, block_size, well_no = 0, re
 
         try:
             return group0['raw'][:,start_frame:start_frame+block_size*frames_per_sample:frames_per_sample].T * lsb , time
-        except OSError:
-            print("OSError thrown")
-            num_channels = np.shape(group0['raw'])[0]
-            placeholder_data = np.tile(np.arange(start_frame, start_frame + block_size*frames_per_sample, frames_per_sample), (num_channels, 1)).T
-            return placeholder_data, time
+        except OSError as err:
+            print(err)
+            print("OSError thrown. you gotta run this on the maxlab computer :(")
+            sys.exit()
+
 
 
 def load_from_file(filename, start_time, end_time,  well_no = 0, recording_no = 0, sample_frequency = 20000):
@@ -91,14 +92,13 @@ def load_from_file(filename, start_time, end_time,  well_no = 0, recording_no = 
         
         try:
             return group0['raw'][:,start_frame:start_frame+block_size:frames_per_sample].T * lsb , time
-        except OSError:
-            print("OSError thrown")
-            num_channels = np.shape(group0['raw'])[0]
-            placeholder_data = np.tile(np.arange(start_frame, start_frame + block_size, frames_per_sample), (num_channels, 1)).T
-            return placeholder_data, time
+        except OSError as err:
+            print(err)
+            print("OSError thrown. you gotta run this on the maxlab computer :(")
+            sys.exit()
 
 
-def recording_to_csv(filename, well_no = 0, recording_no = 0, block_size = 40000, frames_per_sample = 6, csv_name = None, delimiter = ','):
+def recording_to_csv(filename, well_no = 0, recording_no = 0, block_size = 40000, frames_per_sample = 16, csv_name = None, delimiter = ','):
     #get channel numbers, number of frames
     #test
     with h5py.File(filename, "r") as h5_file:
@@ -124,13 +124,15 @@ def recording_to_csv(filename, well_no = 0, recording_no = 0, block_size = 40000
         #block_end = min(block_start + block_size * frames_per_sample, num_frames)
         frames_to_end = num_frames - block_start
         print('writing frames ' + str(block_start) + ' to '  + str(block_start + min(block_size * frames_per_sample, frames_to_end)) + ' out of ' + str(num_frames))
-        X, t = load_from_file_by_frames(filename, well_no, recording_no, block_start, min(block_size, frames_to_end//frames_per_sample), frames_per_sample)
+        X, t = load_from_file_by_frames(filename, block_start, min(block_size, frames_to_end//frames_per_sample), well_no = well_no, recording_no = recording_no, frames_per_sample = frames_per_sample)
         full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
         with open(csv_name, 'a') as csvfile:
             np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
 
+
 def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = None, delimiter = ','):
     #get channel numbers, number of frames
+    #16 frames per sample at 20000 frames per second = 1250 samples per second
     with h5py.File(filename, "r") as h5_file:
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
         groups = h5_object['groups']
@@ -147,7 +149,7 @@ def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 4000
         #block_end = min(block_start + block_size * frames_per_sample, num_frames)
         frames_to_end = num_frames - block_start
         print('writing frames ' + str(block_start) + ' to '  + str(block_start + min(block_size * frames_per_sample, frames_to_end)) + ' out of ' + str(num_frames))
-        X, t = load_from_file_by_frames(filename, well_no, recording_no, block_start, min(block_size, frames_to_end//frames_per_sample), frames_per_sample)
+        X, t = load_from_file_by_frames(filename, block_start, min(block_size, frames_to_end//frames_per_sample), well_no = well_no, recording_no = recording_no, frames_per_sample = frames_per_sample)
         full_arr = np.hstack((np.reshape(t, (-1, 1)), X))
         del X, t
         arr[i * block_size:i * block_size + min(block_size, frames_to_end//frames_per_sample), :] = full_arr
@@ -157,9 +159,10 @@ def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 4000
 
     np.save(save_name, arr)
 
-def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None, **kwargs):
+def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_threshold = None):
     '''
-    Returns a pd dataset of the spike data
+    Returns a pd dataset of the spike data.
+    voltage_threshold: should be a negative number. If the spike amplitude is less than the voltage threshold (of greater magnitude), the spike will be counted.
     '''
     with h5py.File(filename, "r") as h5_file:
         h5_object = h5_file['wells']['well{0:0>3}'.format(well_no)]['rec{0:0>4}'.format(recording_no)]
@@ -191,7 +194,7 @@ def load_spikes_from_file(filename, well_no = 0, recording_no = 0, voltage_thres
         
         return spike_pd_dataset
     
-def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', **kwargs):#TODO: TEST THIS!!!
+def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', save = False, save_name = None):
     '''
     Takes in a spike data dataframe (created by load_spikes_from_file()) and turns it into a sparse numpy arrayReturns a sparse numpy array with data on the spikes that occur within each time bin.. mode must be 'binary' or 'count'. bin_size is in s.
     '''
@@ -200,6 +203,8 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', **k
     last_spike_t = max(spike_df['time'])
     num_channels = max(spike_df['channel'] + 1) #channels are zero-indexed
     arr = np.zeros((int(last_spike_t/bin_size + 1), num_channels), dtype=int)
+    spike_data = spike_df.copy()
+    bin_id = []
 
     bin_start_t = 0
     i = 0
@@ -213,26 +218,34 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', **k
                 arr[i, channel_number] = 1
             elif mode == 'count':
                 arr[i, channel_number] += 1
+            bin_id.append(i)
         bin_start_t += bin_size
-        i += 1 
+        i += 1
     print('num spikes lost: ' + str(num_spikes_lost) + "/" + str(len(spike_df.index)) + '=' + str(num_spikes_lost/len(spike_df.index)))
+    spike_data['bin_id'] = bin_id
 
-    return arr
-
-def spike_array_from_file(filename, save = True, save_name = None, **kwargs):
-    """
-    Runs load_spikes_from_file() and then bin_spike_data() on the result. See those for documentation on parameters.
-    Returns a sparse numpy array with one axis as time and the other axis as channels with data on the spikes that occur within each time bin.
-    """
-    spike_df = load_spikes_from_file(filename, **kwargs)
-    arr = bin_spike_data(spike_df, **kwargs)
     if save:
         if save_name == None:
-            save_name = filename + '.binned_spikes'
+            save_name = 'temp_spike_array'
 
-    np.save(save_name, arr)
+        np.save(save_name, arr)
 
-    return arr
+    return arr, spike_data
+
+# def spike_array_from_file(filename, save = True, save_name = None, **kwargs):
+#     """
+#     Runs load_spikes_from_file() and then bin_spike_data() on the result. See those for documentation on parameters.
+#     Returns a sparse numpy array with one axis as time and the other axis as channels with data on the spikes that occur within each time bin.
+#     """
+#     spike_df = load_spikes_from_file(filename, **kwargs)
+#     arr, spike_data = bin_spike_data(spike_df, **kwargs)
+#     if save:
+#         if save_name == None:
+#             save_name = filename + '.binned_spikes'
+
+#       np.save(save_name, arr)
+
+#     return arr, spike_data
 
 
 def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshold = None, threshold_std_multiplier = 4, plot_firing = False): #TODO: make fraction threshold dependent upon distribution of numbers of neurons firing in a certain time delta
