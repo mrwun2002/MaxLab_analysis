@@ -113,7 +113,7 @@ class StimulationAssay(Assay):
 
 
 
-parent_folder = 'D:/'
+parent_folder = '/media/mxwbio/Elements'
 project_name = 'Summer_2023_Batch_2'
 
 search_folder = Path(parent_folder, project_name)
