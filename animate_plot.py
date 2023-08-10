@@ -1,3 +1,6 @@
+#DON'T USE THIS FILE!!!! INSTEAD USE THE FUNCTION IN maxlab_analysis.py
+
+
 import numpy as np
 import pandas as pd
 

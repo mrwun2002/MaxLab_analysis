@@ -112,32 +112,36 @@ class StimulationAssay(Assay):
 #as well as an 'Analysis' folder.
 
 
+if __name__ == "__main__":
+    parent_folder = 'D:/'
+    project_name = 'Summer_2023_Batch_2'
 
-parent_folder = 'D:/'
-project_name = 'Summer_2023_Batch_2'
+    search_folder = Path(parent_folder, project_name)
 
-search_folder = Path(parent_folder, project_name)
+    #a list of chips
+    chips = list()
+    #chips = ['20439', '20551']
 
-#a list of chips
-chips = list()
-chips = ['20439', '20551']
+    all_h5_files = list(search_folder.glob("**/data.raw.h5"))
 
-all_h5_files = list(search_folder.glob("**/data.raw.h5"))
+    if not chips:
+        #get just the chip number. I feel like theres probs a better way to do this but idk
+        chips = set(chip_folder_path.parts[-1] for chip_folder_path in search_folder.glob("*/*"))
+        #all_network_scans = list(search_folder.glob("*/*/Network/*/data.raw.h5"))
 
-if not chips:
-    all_network_scans = list(search_folder.glob("*/*/Network/*/data.raw.h5"))
-else:
+    print(chips)
+
     all_network_scans = dict()
     for chip in chips:
         all_network_scans[chip] = list(NetworkAssay(raw_data.parent, True, True) for raw_data in search_folder.glob("*/" + str(chip) + "/Network/*/data.raw.h5"))
-#print(all_h5_files)
+    #print(all_h5_files)
 
 
 
-print(all_network_scans)
+    print(all_network_scans)
 
-print(all_network_scans['20439'][1])
-print(list(all_network_scans['20439'][1].path.glob('*.*')))
+    print(all_network_scans['20439'][1])
+    print(list(all_network_scans['20439'][1].path.glob('*.*')))
 
 
 
