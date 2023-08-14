@@ -12,6 +12,7 @@ import sys
 
 from scipy.signal import find_peaks
 import scipy.stats as stats
+from assay import *
 
 from sklearn.decomposition import PCA, NMF
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -23,6 +24,12 @@ ATTENTION: The data file format is not considered stable and may change in the f
 
 
 def load_from_file_by_frames(filename,  start_frame, block_size, well_no = 0, recording_no = 0,  frames_per_sample = 1):
+    '''
+    Gets a numpy array of the voltage traces across all channels by time, from a raw h5 file.
+    The native sample rate is 20000 samples per second.
+    Returns (voltage traces, time)
+    '''
+
     # The maximum allowed block size can be increased if needed,
     # However, if the block size is too large, handling of the data in Python gets too slow.
 
@@ -57,6 +64,7 @@ def load_from_file_by_frames(filename,  start_frame, block_size, well_no = 0, re
 
 def load_from_file(filename, start_time, end_time,  well_no = 0, recording_no = 0, sample_frequency = 20000):
     '''
+    Gets a numpy array of the voltage traces across all channels by time, from a raw h5 file.
     The native sample rate is 20000 samples per second.
     Returns (voltage traces, time)
     '''
@@ -130,7 +138,7 @@ def recording_to_csv(filename, well_no = 0, recording_no = 0, block_size = 40000
             np.savetxt(csvfile, full_arr, delimiter = delimiter, fmt = '%.6g')
 
 
-def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = None, delimiter = ','):
+def recording_to_npy(filename, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = None):
     #get channel numbers, number of frames
     #16 frames per sample at 20000 frames per second = 1250 samples per second
     with h5py.File(filename, "r") as h5_file:
@@ -227,8 +235,14 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', sav
     if save:
         if save_name == None:
             save_name = 'temp_spike_array'
+        
+        #something is going on here where just doing np.shpae(arr)[0] * bin_size doesn't result in a t vector the same lenght as arr.
+        t = np.arange(0, (np.shape(arr)[0] - 0.5) * bin_size, bin_size)
+        full_arr = np.hstack((np.reshape(t, (-1, 1)), arr)).astype('float32')
 
-        np.save(save_name, arr)
+        
+
+        np.save(save_name, full_arr)
 
     return arr, spike_data
 
@@ -425,6 +439,26 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
         print('time taken: ' + str(time.time() - save_start_time))
     
     return fig
+
+def load_assays_from_project(parent_folder, project_name, chips = set(), build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False, build_umap = True):
+    '''
+    For use with the built-in file structure of the MaxLab system. Takes in a parent folder (the location where all the projects are),
+    the project name, and the chips that are to be looked at. Returns a dictionary of Assay objects indexed by the chip number.
+    By default, chips is an empty set, which looks at all chips in the project.
+    build_raw_npy and build_spike_array default to True, indicating that the raw npy array and spike array files will be saved into the folder if they do not exist yet.
+    '''
+    search_folder = Path(parent_folder, project_name)
+
+    if not chips:
+        #get just the chip number. I feel like theres probs a better way to do this but idk
+        chips = set(chip_folder_path.parts[-1] for chip_folder_path in search_folder.glob("*/*"))
+        #all_network_scans = list(search_folder.glob("*/*/Network/*/data.raw.h5"))
+
+    all_assays = dict()
+    for chip in chips:
+        all_assays[chip] = list(NetworkAssay(raw_data.parent, build_raw_npy, build_spike_array, overwrite_raw_npy, overwrite_spike_array, build_umap) for raw_data in search_folder.glob("*/" + str(chip) + "/Network/*/data.raw.h5"))
+    
+    return all_assays
 
 
 if __name__ == "__main__":

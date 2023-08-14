@@ -26,10 +26,11 @@ class Assay:
         the full path to the raw data
         
     '''
-    def __init__(self, path, build_raw_npy = True, build_spike_array = True, build_umap = True):
+    def __init__(self, path, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False, build_umap = True):
         '''
         Creates an Assay object from a path to a folder. Takes in a filepath to the folder with all data files in the form of a Path object or a string.
         the 'build' parameters tell you whether to create a file if it does not yet exist. They are either True or False.
+        the 'overwrite' parameters, if true, ignore whether or not there already exists a spike array or raw npy file. build parameter must be true for this to take effect.
         '''
         self.path = Path(path)
         self.assay_number = None
@@ -44,24 +45,28 @@ class Assay:
         self.raw_npy = None
 
         #make spike array
-        try:
-            self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
-        except FileNotFoundError:
-            if build_spike_array:
-                print('building spike array in ' + str(self.path))
-                #replaces spike_df with a version that also includes bin_id of each spike.
-                self.spike_df = mla.bin_spike_data(self.spike_df, save = True, save_name = Path(self.path, 'spike_array'))[1]
+        if not overwrite_spike_array:
+            try:
                 self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
+            except FileNotFoundError:
+                if build_spike_array:
+                    self.build_spike_array()
+                    self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
+        else:
+            self.build_spike_array()
+            self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
 
         #make raw numpy array
-        try:
-            self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
-        except FileNotFoundError:
-            if build_raw_npy:
-                print('builing raw npy in ' + str(self.path))#TODO: Implement this
-                
-                mla.recording_to_npy(self.raw_data_path, save_name = Path(self.path,'raw'))
+        if not overwrite_raw_npy:
+            try:
                 self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
+            except FileNotFoundError:
+                if build_raw_npy:
+                    self.build_raw_npy()
+                    self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
+        else:
+            self.build_raw_npy()
+            self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
 
         #get info on the assay
         try:
@@ -73,6 +78,16 @@ class Assay:
         except IndexError:
             pass
 
+    def build_spike_array(self, save_name = 'spike_array', bin_size = 0.02, mode = 'binary'):
+        print('building spike array in ' + str(self.path))
+        #replaces spike_df with a version that also includes bin_id of each spike.
+        mla.bin_spike_data(self.spike_df, bin_size = bin_size, mode = mode, save = True, save_name = Path(self.path, save_name))
+
+    def build_raw_npy(self, save_name = 'raw', well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16 ):
+        print('builing raw npy in ' + str(self.path))                
+        mla.recording_to_npy(self.raw_data_path, well_no = well_no, recording_no = recording_no,  block_size = block_size, frames_per_sample = frames_per_sample, save_name = Path(self.path, save_name))
+
+
     def __str__(self):
         string = ''
         string += ('path: ' + str(self.path) + '\n')
@@ -83,18 +98,6 @@ class Assay:
         string += ('assay_number: ' + str(self.assay_number) + '\n')
 
         return string
-
-    def spike_array_from_file(self, save = True, save_name = None, **kwargs):
-        """
-        Runs load_spikes_from_file() and then bin_spike_data() on the result. See those for documentation on parameters.
-        Returns a sparse numpy array with one axis as time and the other axis as channels with data on the spikes that occur within each time bin.
-        """
-        #TODO: make the savename correct
-        arr = mla.spike_array_from_file(self.path, save, save_name, **kwargs)
-
-        return arr
-    #TODO: Expand the functionality of Assay to mimic what is possible in mla like I did for spike_array_from_file()
-
 
 class NetworkAssay(Assay):
     pass
@@ -117,33 +120,11 @@ if __name__ == "__main__":
     parent_folder = '/media/mxwbio/Elements'
     project_name = 'Summer_2023_Batch_2'
 
-    search_folder = Path(parent_folder, project_name)
-
-
-    #a list of chips
-    chips = list()
-    #chips = ['20439', '20551']
-
-    all_h5_files = list(search_folder.glob("**/data.raw.h5"))
-
-    if not chips:
-        #get just the chip number. I feel like theres probs a better way to do this but idk
-        chips = set(chip_folder_path.parts[-1] for chip_folder_path in search_folder.glob("*/*"))
-        #all_network_scans = list(search_folder.glob("*/*/Network/*/data.raw.h5"))
-
-    print(chips)
-
-    all_network_scans = dict()
-    for chip in chips:
-        all_network_scans[chip] = list(NetworkAssay(raw_data.parent, True, True) for raw_data in search_folder.glob("*/" + str(chip) + "/Network/*/data.raw.h5"))
-    #print(all_h5_files)
-
-
+    all_network_scans = mla.load_assays_from_project(parent_folder, project_name)
 
     print(all_network_scans)
 
     print(all_network_scans['20439'][1])
     print(list(all_network_scans['20439'][1].path.glob('*.*')))
-
 
 
