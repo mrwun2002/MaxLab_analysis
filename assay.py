@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 import sys
 
+from sklearn.preprocessing import StandardScaler
+
+
 
 class Assay:
     '''
@@ -78,6 +81,7 @@ class Assay:
         except IndexError:
             pass
 
+    #all of these build functions are of similar structures. THere may be a cleaner way to go about this - maybe have a class called builder that these methods inherit from or smth
     def build_spike_array(self, save_name = 'spike_array', bin_size = 0.02, mode = 'binary'):
         print('building spike array in ' + str(self.path))
         #replaces spike_df with a version that also includes bin_id of each spike.
@@ -87,6 +91,14 @@ class Assay:
         print('builing raw npy in ' + str(self.path))                
         mla.recording_to_npy(self.raw_data_path, well_no = well_no, recording_no = recording_no,  block_size = block_size, frames_per_sample = frames_per_sample, save_name = Path(self.path, save_name))
 
+    def build_scaled_raw(self, save_name = 'scaled_raw'):
+        '''
+        Uses standardscaler
+        '''
+        print('building scaled raw in ' + str(self.path))
+
+    def build_umap(self, save_name = 'umap'):
+        pass
 
     def __str__(self):
         string = ''
@@ -98,6 +110,9 @@ class Assay:
         string += ('assay_number: ' + str(self.assay_number) + '\n')
 
         return string
+    
+    def __repr__(self):
+        return str(self.path)
 
 class NetworkAssay(Assay):
     pass
