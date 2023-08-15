@@ -44,32 +44,16 @@ class Assay:
         
         self.raw_data_path = Path(self.path, 'data.raw.h5', mmap_mode = 'r')
         self.spike_df = mla.load_spikes_from_file(Path(self.raw_data_path), voltage_threshold=-10)
-        self.spike_array = None
-        self.raw_npy = None
+
+        self.analyses = dict()
 
         #make spike array
-        if not overwrite_spike_array:
-            try:
-                self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
-            except FileNotFoundError:
-                if build_spike_array:
-                    self.build_spike_array()
-                    self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
-        else:
-            self.build_spike_array()
-            self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
+        build_spike_array_func = lambda filename: mla.bin_spike_data(self.spike_df, bin_size = 0.02, mode = 'binary', save = True, save_name = Path(self.path, filename))
+        self.load_build_npy('spike_array', build_spike_array_func, build_spike_array, overwrite_spike_array)
 
-        #make raw numpy array
-        if not overwrite_raw_npy:
-            try:
-                self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
-            except FileNotFoundError:
-                if build_raw_npy:
-                    self.build_raw_npy()
-                    self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
-        else:
-            self.build_raw_npy()
-            self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
+        #make raw npy
+        build_raw_npy_func = lambda filename: mla.recording_to_npy(self.raw_data_path, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = Path(self.path, filename))
+        self.load_build_npy('raw', build_raw_npy_func, build_raw_npy, overwrite_raw_npy)
 
         #get info on the assay
         try:
@@ -81,24 +65,29 @@ class Assay:
         except IndexError:
             pass
 
-    #all of these build functions are of similar structures. THere may be a cleaner way to go about this - maybe have a class called builder that these methods inherit from or smth
-    def build_spike_array(self, save_name = 'spike_array', bin_size = 0.02, mode = 'binary'):
-        print('building spike array in ' + str(self.path))
-        #replaces spike_df with a version that also includes bin_id of each spike.
-        mla.bin_spike_data(self.spike_df, bin_size = bin_size, mode = mode, save = True, save_name = Path(self.path, save_name))
 
-    def build_raw_npy(self, save_name = 'raw', well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16 ):
-        print('builing raw npy in ' + str(self.path))                
-        mla.recording_to_npy(self.raw_data_path, well_no = well_no, recording_no = recording_no,  block_size = block_size, frames_per_sample = frames_per_sample, save_name = Path(self.path, save_name))
-
-    def build_scaled_raw(self, save_name = 'scaled_raw'):
+    def load_build_npy(self, filename: str, build_func = None, build = True, overwrite = False):
         '''
-        Uses standardscaler
+        A function to both load and build a .npy file if the .npy file does not exist yet.
+        the 'build' parameters tell you whether to create a file if it does not yet exist. They are either True or False.
+        the 'overwrite' parameters, if true, ignore whether or not there already exists a spike array or raw npy file. If true, overwrites build parameter.
+        build_func can only be none if build = False or the file already exists and overwrite = False.
+        build_func should be written so that it takes in two parameters: an input, and filename.
         '''
-        print('building scaled raw in ' + str(self.path))
-
-    def build_umap(self, save_name = 'umap'):
-        pass
+        if not overwrite:
+            try:
+                self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
+            except FileNotFoundError:
+                if build:
+                    print('building ' + filename + '.npy' + ' in ' + str(self.path))
+                    build_func(filename)
+                    self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
+                else:
+                    self.analyses[filename] = None
+        else:
+            print('building ' + filename + ' in ' + str(self.path))
+            build_func(filename)
+            self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
 
     def __str__(self):
         string = ''
