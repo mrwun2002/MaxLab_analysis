@@ -97,6 +97,7 @@ class Assay:
         string += ('chip_number: ' + str(self.chip_number) + '\n')
         string += ('assay_type: ' + str(self.assay_type) + '\n')
         string += ('assay_number: ' + str(self.assay_number) + '\n')
+        string += ('analyses: ' + str(self.analyses.keys()))
 
         return string
     
