@@ -5,6 +5,10 @@ import maxlab_analysis as mla
 import numpy as np
 import pandas as pd
 import sys
+import h5py
+
+from sklearn.preprocessing import StandardScaler
+
 
 
 class Assay:
@@ -41,32 +45,28 @@ class Assay:
         
         self.raw_data_path = Path(self.path, 'data.raw.h5', mmap_mode = 'r')
         self.spike_df = mla.load_spikes_from_file(Path(self.raw_data_path), voltage_threshold=-10)
-        self.spike_array = None
-        self.raw_npy = None
+        
+        with h5py.File(self.raw_data_path, "r") as h5_file:
+            h5_object = h5_file['wells']['well{0:0>3}'.format(0)]['rec{0:0>4}'.format(0)]
+
+            # Load settings from file
+            self.lsb = h5_object['settings']['lsb'][0]
+            self.sampling = h5_object['settings']['sampling'][0]
+            self.spike_threshold = h5_object['settings']['spike_threshold'][0]
+            self.gain = h5_object['settings']['gain'][0]
+            self.hpf = h5_object['settings']['hpf'][0]
+            self.mapping = pd.DataFrame(np.array(h5_object['settings']['mapping']))
+            self.record_time = int(h5_file['assay']['inputs']['record_time'][0])
+
+        self.analyses = dict()
 
         #make spike array
-        if not overwrite_spike_array:
-            try:
-                self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
-            except FileNotFoundError:
-                if build_spike_array:
-                    self.build_spike_array()
-                    self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
-        else:
-            self.build_spike_array()
-            self.spike_array = np.load(Path(self.path, 'spike_array.npy'), mmap_mode = 'r')
+        build_spike_array_func = lambda full_filename: mla.bin_spike_data(self.spike_df, bin_size = 0.02, mode = 'binary', save = True, save_name = (full_filename))
+        self.load_build_npy('spike_array', build_spike_array_func, build_spike_array, overwrite_spike_array)
 
-        #make raw numpy array
-        if not overwrite_raw_npy:
-            try:
-                self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
-            except FileNotFoundError:
-                if build_raw_npy:
-                    self.build_raw_npy()
-                    self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
-        else:
-            self.build_raw_npy()
-            self.raw_npy = np.load(Path(self.path, 'raw.npy'), mmap_mode = 'r')
+        #make raw npy
+        build_raw_npy_func = lambda full_filename: mla.recording_to_npy(self.raw_data_path, well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16, save_name = Path(full_filename))
+        self.load_build_npy('raw', build_raw_npy_func, build_raw_npy, overwrite_raw_npy)
 
         #get info on the assay
         try:
@@ -78,15 +78,30 @@ class Assay:
         except IndexError:
             pass
 
-    def build_spike_array(self, save_name = 'spike_array', bin_size = 0.02, mode = 'binary'):
-        print('building spike array in ' + str(self.path))
-        #replaces spike_df with a version that also includes bin_id of each spike.
-        mla.bin_spike_data(self.spike_df, bin_size = bin_size, mode = mode, save = True, save_name = Path(self.path, save_name))
 
-    def build_raw_npy(self, save_name = 'raw', well_no = 0, recording_no = 0,  block_size = 40000, frames_per_sample = 16 ):
-        print('builing raw npy in ' + str(self.path))                
-        mla.recording_to_npy(self.raw_data_path, well_no = well_no, recording_no = recording_no,  block_size = block_size, frames_per_sample = frames_per_sample, save_name = Path(self.path, save_name))
-
+    def load_build_npy(self, filename: str, build_func = None, build = True, overwrite = False):
+        '''
+        A function to both load and build a .npy file if the .npy file does not exist yet.
+        the 'build' parameter tell you whether to create a file if it does not yet exist. Either True or False.
+        the 'overwrite' parameter, if true, ignores whether or not there already exists a file of the name filename. If true, overwrites build parameter.
+        build_func can only be none if build = False or the file already exists and overwrite = False.
+        build_func should be written so that it takes in two parameters: an input, and FULL filename (with the preceeding path). 
+        It should save the new numpy array as a .npy file as the filename specified. See examples in analysis_pipeline.py.
+        '''
+        if not overwrite:
+            try:
+                self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
+            except FileNotFoundError:
+                if build:
+                    print('building ' + filename + '.npy' + ' in ' + str(self.path))
+                    build_func(Path(self.path, filename))
+                    self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
+                else:
+                    self.analyses[filename] = None
+        else:
+            print('building ' + filename + ' in ' + str(self.path))
+            build_func(Path(self.path, filename))
+            self.analyses[filename] = np.load(Path(self.path, filename + '.npy'), mmap_mode = 'r')
 
     def __str__(self):
         string = ''
@@ -96,8 +111,12 @@ class Assay:
         string += ('chip_number: ' + str(self.chip_number) + '\n')
         string += ('assay_type: ' + str(self.assay_type) + '\n')
         string += ('assay_number: ' + str(self.assay_number) + '\n')
+        string += ('analyses: ' + str(self.analyses.keys()))
 
         return string
+    
+    def __repr__(self):
+        return str(self.path)
 
 class NetworkAssay(Assay):
     pass

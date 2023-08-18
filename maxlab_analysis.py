@@ -262,16 +262,16 @@ def bin_spike_data(spike_df: pd.DataFrame, bin_size = 0.02, mode = 'binary', sav
 #     return arr, spike_data
 
 
-def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshold = None, threshold_std_multiplier = 4, plot_firing = False): #TODO: make fraction threshold dependent upon distribution of numbers of neurons firing in a certain time delta
+def find_synchronized_bursts(df: pd.DataFrame, delta_t = 0.05, fraction_threshold = None, threshold_std_multiplier = 4, plot_firing = False): #TODO: make fraction threshold dependent upon distribution of numbers of neurons firing in a certain time delta
     '''
-    Takes in a pd dataframe of spike data, a percentage threshold for spikes to be considered "synchronized", and a time delta (measured in seconds) in which to search for synchronized spikes.
-    Returns a pd dataframe containing just the synchronized spikes as well as a dataframe containin the start times of each spike, to the lowest time delta divided by two, and the number of channels active during each spike.
+    Takes in a pd dataframe of spike data, a percentage threshold for bursts to be considered "synchronized", and a time delta (measured in seconds) in which to search for synchronized bursts.
+    Returns a pd dataframe containing just the spikes in the synchronized bursts as well as a dataframe containin the start times of each burst, to the lowest time delta divided by two, and the number of channels active during each burst.
     '''
     num_channels = df['channel'].nunique() #Do we want this to be the number of active channels? the largest channel number?
 
     max_time = max(df['time'])
 
-    synchronized_spikes_df = pd.DataFrame(columns=df.columns)
+    synchronized_bursts_df = pd.DataFrame(columns=df.columns)
 
     #look within a range of times, if a spike exists within that range, add the channel to a set of channels. Count the number of elements in that set.
     
@@ -284,19 +284,16 @@ def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshol
         entries_in_range = df.loc[df['time'].ge(start_time) & df['time'].lt(start_time + delta_t)]
 
         fraction_firing_channels[i] = (entries_in_range['channel'].nunique())/num_channels
-        #if fraction_firing_channels[i] >= fraction_threshold:
-            #synchronized_spikes_df = pd.concat([synchronized_spikes_df, entries_in_range])
-            #spike_times.append(start_frame)
 
     if fraction_threshold == None:
         fraction_threshold = threshold_std_multiplier*np.std(fraction_firing_channels) + np.mean(fraction_firing_channels)
         #print(fraction_threshold)
     
-    (spike_indeces, spike_properties) = find_peaks(fraction_firing_channels, height = fraction_threshold)
-    #print(spike_indeces)
-    spike_times = start_times[spike_indeces]
+    (burst_indeces, burst_properties) = find_peaks(fraction_firing_channels, height = fraction_threshold)
+    #print(burst_indeces)
+    burst_times = start_times[burst_indeces]
 
-    spike_times_df = pd.DataFrame(list(zip(spike_times, spike_properties['peak_heights'])), columns = ['time', 'fraction channels active'])
+    burst_times_df = pd.DataFrame(list(zip(burst_times, burst_properties['peak_heights'])), columns = ['time', 'fraction channels active'])
 
     if plot_firing:
         plt.figure()
@@ -306,11 +303,11 @@ def find_synchronized_spikes(df: pd.DataFrame, delta_t = 0.05, fraction_threshol
         plt.hlines(fraction_threshold, 0, max_time, 'red')
         #plt.show()
 
-    for spike_time in spike_times:
-        entries_in_range = df.loc[df['time'].ge(spike_time) & df['time'].lt(spike_time + delta_t)]
-        synchronized_spikes_df = pd.concat([synchronized_spikes_df, entries_in_range])
+    for burst_time in burst_times:
+        entries_in_range = df.loc[df['time'].ge(burst_time) & df['time'].lt(burst_time + delta_t)]
+        synchronized_bursts_df = pd.concat([synchronized_bursts_df, entries_in_range])
 
-    return synchronized_spikes_df, spike_times_df
+    return synchronized_bursts_df, burst_times_df
 
 
 
@@ -353,7 +350,7 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
     else:
         X = data_from_npy[:, 1::]
     Y = load_spikes_from_file(data_source, 0, 0, -10)
-    Y_synchronized, spike_times = find_synchronized_spikes(Y)
+    Y_synchronized, spike_times = find_synchronized_bursts(Y)
 
 
     scaler = StandardScaler()
