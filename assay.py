@@ -30,7 +30,7 @@ class Assay:
         the full path to the raw data
         
     '''
-    def __init__(self, path, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False, build_umap = True):
+    def __init__(self, path, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False):
         '''
         Creates an Assay object from a path to a folder. Takes in a filepath to the folder with all data files in the form of a Path object or a string.
         the 'build' parameters tell you whether to create a file if it does not yet exist. They are either True or False.
@@ -85,7 +85,7 @@ class Assay:
         the 'build' parameter tell you whether to create a file if it does not yet exist. Either True or False.
         the 'overwrite' parameter, if true, ignores whether or not there already exists a file of the name filename. If true, overwrites build parameter.
         build_func can only be none if build = False or the file already exists and overwrite = False.
-        build_func should be written so that it takes in two parameters: an input, and FULL filename (with the preceeding path). 
+        build_func should be written so that it takes in one parameter: a FULL filename where the file will be saved (with the preceeding path). 
         It should save the new numpy array as a .npy file as the filename specified. See examples in analysis_pipeline.py.
         '''
         if not overwrite:
@@ -136,10 +136,14 @@ class StimulationAssay(Assay):
 
 if __name__ == "__main__":
 
-    parent_folder = '/media/mxwbio/Elements'
+    parent_folder = 'D:/'
     project_name = 'Summer_2023_Batch_2'
 
     all_network_scans = mla.load_assays_from_project(parent_folder, project_name)
+
+    for assay in np.concatenate(list(all_network_scans.values())):
+        assay.load_build_npy('scaled')
+        assay.load_build_npy('pca')
 
     print(all_network_scans)
 
