@@ -116,7 +116,7 @@ class Assay:
         return string
     
     def __repr__(self):
-        return str(self.path)
+        return str(type(self)) + ': ' + str(self.path)
 
 class NetworkAssay(Assay):
     pass
