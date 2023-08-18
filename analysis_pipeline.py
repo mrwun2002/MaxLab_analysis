@@ -52,8 +52,8 @@ def analyze(assay: Assay):
 
     #actual analysis
     print('starting analysis')
-    #assay.load_build_npy('scaled', build_scaled_func)
-    #assay.load_build_npy('pca', build_pca_func)
+    assay.load_build_npy('scaled', build_scaled_func)
+    assay.load_build_npy('pca', build_pca_func)
 
     full_channel_synchronized, burst_times = mla.find_synchronized_bursts(assay.spike_df, plot_firing = True)
     print(burst_times.head())
@@ -67,6 +67,8 @@ def analyze(assay: Assay):
     
 
 parent_folder = 'q:/Users/mrwun/OneDrive - Yale University/levin'
+parent_folder = 'D:/'
+
 project_name = 'Summer_2023_Batch_2'
 
 all_network_scans = mla.load_assays_from_project(parent_folder, project_name)
