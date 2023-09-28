@@ -7,8 +7,10 @@ assay.py includes the Assay class, a class that stores info about individual ass
 
 analysis_pipeline.py includes an example of how to run versatile analyses.
 
+All jupyter notebooks are analysis scripts.
+
 
 Instructions:
 Copy "project" folder produced by MaxLab system into the hard drive. Build all raw npy and spike array files by calling mla.load_assays_from_project(). After all files are built, analysis can proceed, using the "project" folder as the parent folder.
-See analysis_pipeline.py for examples on how to use assay.load_build_npy() to save and load different analyses.
+See analysis_pipeline.py or pca_all_chips.ipynb for examples on how to use assay.load_build_npy() to save and load different analyses.
 
