@@ -437,7 +437,7 @@ def animate_pca(filestem, start_time, end_time, animation_framerate = 10, record
     
     return fig
 
-def load_assays_from_project(parent_folder, project_name, chips = set(), build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False):
+def load_assays_from_project(parent_folder, project_name, chips = set(), open_raw_h5 = True, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False):
     '''
     For use with the built-in file structure of the MaxLab system. Takes in a parent folder (the location where all the projects are),
     the project name, and the chips that are to be looked at. Returns a dictionary of Assay objects indexed by the chip number.
@@ -453,7 +453,7 @@ def load_assays_from_project(parent_folder, project_name, chips = set(), build_r
 
     all_assays = dict()
     for chip in chips:
-        all_assays[chip] = list(NetworkAssay(raw_data.parent, build_raw_npy, build_spike_array, overwrite_raw_npy, overwrite_spike_array) for raw_data in search_folder.glob("*/" + str(chip) + "/Network/*/data.raw.h5"))
+        all_assays[chip] = list(NetworkAssay(raw_data.parent, open_raw_h5, build_raw_npy, build_spike_array, overwrite_raw_npy, overwrite_spike_array) for raw_data in search_folder.glob("*/" + str(chip) + "/Network/*/data.raw.h5"))
     
     return all_assays
 

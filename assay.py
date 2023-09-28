@@ -30,7 +30,7 @@ class Assay:
         the full path to the raw data
         
     '''
-    def __init__(self, path, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False):
+    def __init__(self, path, open_raw_h5 = True, build_raw_npy = True, build_spike_array = True, overwrite_raw_npy = False, overwrite_spike_array = False):
         '''
         Creates an Assay object from a path to a folder. Takes in a filepath to the folder with all data files in the form of a Path object or a string.
         the 'build' parameters tell you whether to create a file if it does not yet exist. They are either True or False.
@@ -44,19 +44,20 @@ class Assay:
         self.project = None
         
         self.raw_data_path = Path(self.path, 'data.raw.h5', mmap_mode = 'r')
-        self.spike_df = mla.load_spikes_from_file(Path(self.raw_data_path), voltage_threshold=-10)
+        if open_raw_h5:
+            self.spike_df = mla.load_spikes_from_file(Path(self.raw_data_path), voltage_threshold=-10)
         
-        with h5py.File(self.raw_data_path, "r") as h5_file:
-            h5_object = h5_file['wells']['well{0:0>3}'.format(0)]['rec{0:0>4}'.format(0)]
+            with h5py.File(self.raw_data_path, "r") as h5_file:
+                h5_object = h5_file['wells']['well{0:0>3}'.format(0)]['rec{0:0>4}'.format(0)]
 
-            # Load settings from file
-            self.lsb = h5_object['settings']['lsb'][0]
-            self.sampling = h5_object['settings']['sampling'][0]
-            self.spike_threshold = h5_object['settings']['spike_threshold'][0]
-            self.gain = h5_object['settings']['gain'][0]
-            self.hpf = h5_object['settings']['hpf'][0]
-            self.mapping = pd.DataFrame(np.array(h5_object['settings']['mapping']))
-            self.record_time = int(h5_file['assay']['inputs']['record_time'][0])
+                # Load settings from file
+                self.lsb = h5_object['settings']['lsb'][0]
+                self.sampling = h5_object['settings']['sampling'][0]
+                self.spike_threshold = h5_object['settings']['spike_threshold'][0]
+                self.gain = h5_object['settings']['gain'][0]
+                self.hpf = h5_object['settings']['hpf'][0]
+                self.mapping = pd.DataFrame(np.array(h5_object['settings']['mapping']))
+                self.record_time = int(h5_file['assay']['inputs']['record_time'][0])
 
         self.analyses = dict()
 
